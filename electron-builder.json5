@@ -1,0 +1,15 @@
+{
+  "appId": "com.storagesniffer",
+  "productName": "Storage Sniffer",
+  "directories": {
+    "output": "dist"
+  },
+  "compression": "maximum",
+  "files": [
+    "out/**/*"
+  ],
+  "mac": {
+    "category": "public.app-category.utilities",
+    "target": "dmg"
+  }
+}

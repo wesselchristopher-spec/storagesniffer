@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Storage Sniffer</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+
+<body>
+  <div id="app">
+    <header>
+      <!-- .drag-region removed in CSS but kept here as placeholder or we remove it entirely -->
+      <div class="controls">
+        <button id="back-btn" class="icon-btn" title="Back">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+          </svg>
+        </button>
+        <div id="breadcrumb" class="breadcrumb"></div>
+      </div>
+      <div id="status" class="status">Waiting for mode selection...</div>
+    </header>
+
+    <main>
+      <div id="treemap-container"></div>
+    </main>
+    <div id="tooltip" class="tooltip hidden"></div>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+
+</html>
