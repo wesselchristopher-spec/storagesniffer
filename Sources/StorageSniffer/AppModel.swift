@@ -242,7 +242,8 @@ final class AppModel {
         var out: [(Item.Unseen, Int64)] = []
         if volume.free > 0 { out.append((.free, volume.free)) }
         guard phase == .done else { return out }
-        let gap = volume.used - root.totalSize
+        // The Trash was moved out of the tree but is still used space the scan measured.
+        let gap = volume.used - root.totalSize - (trash?.totalSize ?? 0)
         guard gap > minimum else { return out }
         let purgeable = min(volume.purgeable, gap)
         if purgeable > minimum { out.append((.purgeable, purgeable)) }
