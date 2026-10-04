@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Storage Sniffer</string>
+	<key>CFBundleDisplayName</key>
+	<string>Storage Sniffer</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.storagesniffer.app</string>
+	<key>CFBundleExecutable</key>
+	<string>StorageSniffer</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>2.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>15.0</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Storage Sniffer measures how much space your Desktop uses. It never reads file contents.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Storage Sniffer measures how much space your Documents folder uses. It never reads file contents.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Storage Sniffer measures how much space your Downloads folder uses. It never reads file contents.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Storage Sniffer measures how much space is used on removable drives. It never reads file contents.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>Storage Sniffer measures how much space is used on network drives. It never reads file contents.</string>
+</dict>
+</plist>
