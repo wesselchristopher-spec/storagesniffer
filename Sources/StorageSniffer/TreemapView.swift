@@ -210,7 +210,7 @@ struct TreemapView: View {
                     shine, startPoint: CGPoint(x: r.minX, y: r.minY),
                     endPoint: CGPoint(x: r.minX, y: r.minY + min(r.height, 120))))
             }
-            if case .hidden = tile.item.kind {
+            if case .hidden(let unseen) = tile.item.kind, unseen != .free {
                 drawHatching(in: r, path: path, context: &context)
             }
         }

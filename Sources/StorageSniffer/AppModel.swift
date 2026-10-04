@@ -22,6 +22,10 @@ final class AppModel {
     private(set) var layoutRevision = 0
     private(set) var hasFullDiskAccess = Permissions.hasFullDiskAccess
 
+    /// Your Trash, pulled out of the home folder and shown as its own item at the root.
+    /// Nil until the scan finishes, or when macOS won't let us read it.
+    private(set) var trash: DirNode?
+
     /// The folder being viewed.
     private(set) var current: DirNode?
     var selection: Item.ID?
@@ -45,7 +49,8 @@ final class AppModel {
     }
 
     func displayName(of dir: DirNode) -> String {
-        dir === root ? rootDisplayName : dir.name
+        if dir === trash { return "Trash" }
+        return dir === root ? rootDisplayName : dir.name
     }
 
     // MARK: Scanning
@@ -62,6 +67,7 @@ final class AppModel {
         selection = nil
         hovered = nil
         lastTrashed = nil
+        trash = nil
         sortedCache = [:]
         phase = .scanning
         scanStarted = Date()
@@ -112,8 +118,26 @@ final class AppModel {
         ticker = nil
         volume = VolumeInfo(path: rootPath)
         phase = .done
+        separateTrash()
         revision += 1
         layoutRevision += 1
+    }
+
+    /// Moves ~/.Trash out of the home folder into its own root-level item, so what's
+    /// waiting to be emptied isn't mixed in with your files.
+    private func separateTrash() {
+        guard let root else { return }
+        let trashPath = NSHomeDirectory() + "/.Trash"
+        let base = rootPath == "/" ? "" : rootPath
+        guard trashPath.hasPrefix(base + "/") else { return }
+        var node: DirNode? = root
+        for name in trashPath.dropFirst(base.count + 1).split(separator: "/") {
+            node = node.flatMap { n in n.isListed ? n.dirs.first { $0.name == name } : nil }
+        }
+        guard let found = node, found.isListed, let parent = found.parent else { return }
+        parent.removeDir(found)
+        trash = found
+        sortedCache = [:]
     }
 
     /// Rescans one folder in place, e.g. after cleaning it up in Finder.
@@ -133,6 +157,12 @@ final class AppModel {
         parent.replaceDir(old, with: new)
         if let current, current.isDescendant(of: old) { self.current = new }
         if selection == .folder(old.id) { selection = .folder(new.id) }
+        // Rescanning a folder that contains the Trash brings a fresh copy of it back.
+        if let trash, trash.path.hasPrefix(new.path + "/") {
+            self.trash = nil
+            if let current, current.isDescendant(of: trash) { self.current = root }
+            separateTrash()
+        }
         contentsChanged()
     }
 
@@ -158,7 +188,13 @@ final class AppModel {
     }
 
     func goUp() {
-        guard let current, current !== root, let parent = current.parent else { return }
+        guard let current, current !== root else { return }
+        if current === trash, let root {
+            open(root)
+            selection = .folder(current.id)
+            return
+        }
+        guard let parent = current.parent else { return }
         let child = current
         open(parent)
         selection = .folder(child.id)
@@ -177,9 +213,18 @@ final class AppModel {
             items = Item.children(of: dir)
             if dir.isComplete { sortedCache[dir.id] = items }
         }
+        if dir === root, let trash, trash.totalSize > 0 {
+            let item = Item(kind: .folder(trash), name: "Trash", size: trash.totalSize, parent: dir)
+            let i = items.firstIndex { $0.size < item.size } ?? items.count
+            items.insert(item, at: i)
+        }
         if dir === root {
-            for (kind, size) in unseenSpace {
-                let name = kind == .purgeable ? "Purgeable space" : "Hidden & system data"
+            for (kind, size) in diskExtras {
+                let name = switch kind {
+                case .free: "Free space"
+                case .purgeable: "Purgeable space"
+                case .other: trashIsUnreadable ? "Hidden data & Trash" : "Hidden & system data"
+                }
                 let item = Item(kind: .hidden(kind), name: name, size: size, parent: dir)
                 let i = items.firstIndex { $0.size < size } ?? items.count
                 items.insert(item, at: i)
@@ -188,25 +233,36 @@ final class AppModel {
         return items
     }
 
-    /// Used space the scan could not see, split into what macOS reports as purgeable and the
-    /// rest. Only meaningful for a finished whole-disk scan.
-    var unseenSpace: [(Item.Unseen, Int64)] {
-        guard isWholeDisk, phase == .done, let volume, let root else { return [] }
-        let gap = volume.used - root.totalSize
+    /// Extra items at the root of a whole-disk scan so it adds up to the disk's capacity:
+    /// free space, plus used space the scan could not see (once the scan has finished), split
+    /// into what macOS reports as purgeable and the rest.
+    var diskExtras: [(Item.Unseen, Int64)] {
+        guard isWholeDisk, let volume, let root else { return [] }
         let minimum = volume.total / 1000
-        guard gap > minimum else { return [] }
-        let purgeable = min(volume.purgeable, gap)
         var out: [(Item.Unseen, Int64)] = []
+        if volume.free > 0 { out.append((.free, volume.free)) }
+        guard phase == .done else { return out }
+        let gap = volume.used - root.totalSize
+        guard gap > minimum else { return out }
+        let purgeable = min(volume.purgeable, gap)
         if purgeable > minimum { out.append((.purgeable, purgeable)) }
         if gap - purgeable > minimum { out.append((.other, gap - purgeable)) }
         return out
     }
 
-    /// Size shown for a folder. At the disk root this includes space the scan couldn't see,
-    /// so percentages add up to the disk's used space.
+    /// The Trash is protected by macOS; without Full Disk Access its contents land in
+    /// "Hidden & system data" and can be most of it right after a big cleanup.
+    var trashIsUnreadable: Bool {
+        let fd = Darwin.open(NSHomeDirectory() + "/.Trash", O_RDONLY | O_DIRECTORY | O_CLOEXEC)
+        if fd >= 0 { close(fd); return false }
+        return errno == EPERM || errno == EACCES
+    }
+
+    /// Size shown for a folder. At the disk root this is the whole disk, including free space
+    /// and space the scan couldn't see, so percentages are shares of the disk.
     func displayedSize(of dir: DirNode) -> Int64 {
         guard dir === root else { return dir.totalSize }
-        return dir.totalSize + unseenSpace.reduce(0) { $0 + $1.1 }
+        return dir.totalSize + (trash?.totalSize ?? 0) + diskExtras.reduce(0) { $0 + $1.1 }
     }
 
     func item(for id: Item.ID?) -> Item? {
@@ -233,8 +289,15 @@ final class AppModel {
         NSPasteboard.general.setString(path, forType: .string)
     }
 
+    /// True for the Trash and anything inside it, which can't be moved to the Trash again.
+    func isInTrash(_ item: Item) -> Bool {
+        guard let trash else { return false }
+        if let folder = item.folder { return folder.isDescendant(of: trash) }
+        return item.parent.isDescendant(of: trash)
+    }
+
     func requestTrash(_ item: Item) {
-        guard item.isReal else { return }
+        guard item.isReal, !isInTrash(item) else { return }
         if isBusy {
             errorMessage = "Wait for the scan to finish before moving items to the Trash."
             return

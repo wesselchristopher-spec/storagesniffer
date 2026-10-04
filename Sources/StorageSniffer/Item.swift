@@ -15,6 +15,8 @@ struct Item: Identifiable {
     enum Unseen: Hashable {
         /// Space macOS reports as purgeable: caches and local snapshots it frees on demand.
         case purgeable
+        /// Space nothing is using.
+        case free
         /// Everything else: APFS snapshots, protected system data, unreadable folders.
         case other
     }
@@ -88,6 +90,7 @@ struct Item: Identifiable {
             return FileKinds.symbol(for: f.name)
         case .smaller: return "square.grid.3x3.fill"
         case .hidden(.purgeable): return "arrow.3.trianglepath"
+        case .hidden(.free): return "circle.dashed"
         case .hidden(.other): return "eye.slash.fill"
         }
     }
@@ -110,6 +113,7 @@ struct Item: Identifiable {
 
 enum FileKinds {
     static func folderSymbol(_ name: String) -> String {
+        if name == ".Trash" { return "trash.fill" }
         let ext = (name as NSString).pathExtension.lowercased()
         switch ext {
         case "app": return "app.fill"

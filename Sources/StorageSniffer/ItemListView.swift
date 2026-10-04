@@ -122,19 +122,24 @@ struct ItemMenu: View {
             Button("Reveal in Finder") { model.reveal(item) }
             Button("Copy Path") { model.copyPath(item) }
         }
-        if let folder = item.folder {
+        if let folder = item.folder, folder !== model.trash {
             Button("Rescan Folder") { model.rescan(folder) }
                 .disabled(model.isBusy)
         }
-        if item.isReal {
+        if item.isReal, !model.isInTrash(item) {
             Divider()
             Button("Move to Trash…", role: .destructive) { model.requestTrash(item) }
                 .disabled(model.isBusy)
         }
         if case .hidden(let unseen) = item.kind {
-            Text(unseen == .purgeable
-                 ? "macOS frees this automatically when space runs low"
-                 : "APFS snapshots, protected system data and unreadable folders")
+            switch unseen {
+            case .free: Text("Available for new files")
+            case .purgeable: Text("macOS frees this automatically when space runs low")
+            case .other:
+                Text(model.trashIsUnreadable
+                     ? "Includes your Trash, which needs Full Disk Access to measure"
+                     : "APFS snapshots, protected system data and unreadable folders")
+            }
         }
     }
 }

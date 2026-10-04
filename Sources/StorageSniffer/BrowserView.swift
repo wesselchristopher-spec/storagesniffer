@@ -41,7 +41,7 @@ struct BrowserView: View {
             }
         }
         .navigationTitle(model.current.map(model.displayName(of:)) ?? "Storage Sniffer")
-        .navigationSubtitle(model.current.map { Format.bytes(model.displayedSize(of: $0)) } ?? "")
+        .navigationSubtitle(subtitle)
         .confirmationDialog(trashTitle, isPresented: trashPresented, titleVisibility: .visible) {
             Button("Move to Trash", role: .destructive) { model.confirmTrash() }
             Button("Cancel", role: .cancel) { model.pendingTrash = nil }
@@ -53,6 +53,14 @@ struct BrowserView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+    }
+
+    private var subtitle: String {
+        guard let current = model.current else { return "" }
+        if current === model.root, model.isWholeDisk, let volume = model.volume {
+            return "\(Format.bytes(volume.used)) used of \(Format.bytes(volume.total))"
+        }
+        return Format.bytes(current.totalSize)
     }
 
     private var trashTitle: String {
@@ -202,10 +210,14 @@ private struct StatusBar: View {
 
     private func description(of item: Item) -> String {
         switch item.kind {
+        case .hidden(.free):
+            "Free space: available for new files"
         case .hidden(.purgeable):
             "Purgeable: caches and snapshots macOS frees automatically when space runs low"
         case .hidden(.other):
-            "Used space the scan can’t see: APFS snapshots, protected system data, unreadable folders"
+            model.trashIsUnreadable
+                ? "Includes your Trash, which macOS hides without Full Disk Access. Empty the Trash to free it."
+                : "Used space the scan can’t see: APFS snapshots, protected system data, unreadable folders"
         case .smaller:
             item.name
         default:

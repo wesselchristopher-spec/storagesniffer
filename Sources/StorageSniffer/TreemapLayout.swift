@@ -144,6 +144,8 @@ enum Palette {
         switch item.kind {
         case .smaller:
             return Color(hue: hue, saturation: 0.06, brightness: dark ? 0.36 : 0.74)
+        case .hidden(.free):
+            return Color(white: dark ? 0.19 : 0.80)
         case .hidden(.purgeable):
             return Color(hue: 0.5, saturation: 0.12, brightness: dark ? 0.34 : 0.66)
         case .hidden(.other):
